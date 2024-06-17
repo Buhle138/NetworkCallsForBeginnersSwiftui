@@ -13,9 +13,19 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 20 ) {
-            Circle()
+        
+            AsyncImage(url: URL(string: user?.avatarUrl ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(Circle())
+                
+            } placeholder: {
+                Circle()
                 .foregroundColor(.secondary)
-                .frame(width: 120, height: 120)
+            }
+            .frame(width: 120, height: 120)
+            
             
             Text(user?.login ?? "Login Placeholder")
                 .bold()
@@ -23,24 +33,25 @@ struct ContentView: View {
             
             Text(user?.bio ?? "Bio PlaceHolder")
                 .padding()
-                .task {
-                    do {
-                        user = try await getUser()
-                    }catch GHError.invalidUrl{
-                        print("Invalid URL")
-                    }catch GHError.invalidResponse{
-                        print("Invalid Response")
-                    }catch GHError.invalidData{
-                        print("invalid data")
-                    }catch{
-                        print("Unexpected errors")
-                    }
-                   
-                }
+               
             
             Spacer()
         }
         .padding()
+        .task {
+            do {
+                user = try await getUser()
+                print("User data successfully fetched: \(String(describing: user) )")
+            }catch GHError.invalidUrl{
+                print("Invalid URL")
+            }catch GHError.invalidResponse{
+                print("Invalid Response")
+            }catch GHError.invalidData{
+                print(GHError.invalidData)
+            }catch{
+                print("Unexpected errors")
+            }
+        }
     }
     func getUser() async throws -> GitHubUser {
         
@@ -51,7 +62,10 @@ struct ContentView: View {
         guard let url = URL(string: endpoint) else {throw GHError.invalidUrl}
         
         let (data,  response) = try await URLSession.shared.data(from: url)
-        
+        print("Hello Buhle")
+       print("Raw data: \(String(data: data, encoding: .utf8) ?? "No data")")
+       print("HTTP response: \(response)")
+//
         guard let response = response as? HTTPURLResponse, response.statusCode == 200 else{
             throw GHError.invalidResponse
         }
@@ -59,13 +73,10 @@ struct ContentView: View {
         do{
             let decoder = JSONDecoder()
             //using converting from snake case  since the JSON had variables with underscores.
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
             return try decoder.decode(GitHubUser.self, from: data)
         }catch{
             throw GHError.invalidData
         }
-        
-        
     }
 }
 
@@ -79,7 +90,6 @@ struct GitHubUser: Codable {
     let login: String
     let avatarUrl: String
     let bio: String
-    
 }
 
 enum GHError: Error{
